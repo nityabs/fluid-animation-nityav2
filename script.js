@@ -23,7 +23,9 @@ let fluidConfig = {
   COLOR_UPDATE_SPEED: 10,
   PAUSED: false,
   BACK_COLOR: { r: 255, g: 255, b: 255 },
-  TRANSPARENT: true
+  TRANSPARENT: true,
+  VELOCITY_SMOOTHING: 0.2,
+  DISPLACEMENT_STRENGTH: 0.02
 };
 
 const initFluid = () => {
@@ -454,7 +456,8 @@ const displayShaderSource = `
     uniform vec2 ditherScale;
     uniform vec2 texelSize;
     uniform float uImageStrength;    
-    uniform float uDisplacementStrength; 
+    uniform float uDisplacementStrength;
+    uniform float uVelocitySmoothing;
 
     vec3 linearToGamma (vec3 color) {
         color = max(color, vec3(0));
@@ -466,7 +469,7 @@ const displayShaderSource = `
         vec2 velocity = texture2D(uVelocity, vUv).xy;
         
         // Apply smoothing to velocity and reduce intensity
-        velocity = velocity * 0.2; // Reduce velocity impact
+        velocity = velocity * uVelocitySmoothing;
         
         // Displace UV coordinates based on velocity (more subtle)
         vec2 displacedUV = vUv + velocity * uDisplacementStrength;
@@ -497,7 +500,7 @@ const displayShaderSource = `
     #endif
 
         // Blend background image with dye field (more subtle blending)
-        vec3 finalColor = mix(backgroundImage.rgb * uImageStrength, dyeColor, length(dyeColor) * 0.6);
+        vec3 finalColor = mix(backgroundImage.rgb * uImageStrength, dyeColor, length(dyeColor) * 0.2);
         
         float alpha = max(finalColor.r, max(finalColor.g, finalColor.b));
         gl_FragColor = vec4(finalColor, alpha);
@@ -1068,12 +1071,15 @@ function drawDisplay(target) {
         gl.bindTexture(gl.TEXTURE_2D, sourceImageTexture);
         gl.uniform1i(displayMaterial.uniforms.uBackgroundImage, 2);
         gl.uniform1f(displayMaterial.uniforms.uImageStrength, 0.7); // 0.0 = invisible, 1.0 = full strength
-        gl.uniform1f(displayMaterial.uniforms.uDisplacementStrength, 0.02); // Adjust displacement intensity
+        gl.uniform1f(displayMaterial.uniforms.uDisplacementStrength, config.DISPLACEMENT_STRENGTH);
     } else {
         // No background image, set strength to 0
         gl.uniform1f(displayMaterial.uniforms.uImageStrength, 0.0);
         gl.uniform1f(displayMaterial.uniforms.uDisplacementStrength, 0.0);
     }
+    
+    // Set velocity smoothing uniform
+    gl.uniform1f(displayMaterial.uniforms.uVelocitySmoothing, config.VELOCITY_SMOOTHING);
     
     blit(target);
 }
@@ -1329,7 +1335,9 @@ function resetToDefaults() {
     PRESSURE_ITERATIONS: 20,
     CURL: 2,
     SPLAT_RADIUS: 0.01,
-    SPLAT_FORCE: 1000
+    SPLAT_FORCE: 1000,
+    VELOCITY_SMOOTHING: 0.2,
+    DISPLACEMENT_STRENGTH: 0.02
   };
   
   Object.keys(defaults).forEach(key => {
