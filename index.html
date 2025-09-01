@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>WebGL Fluid Animation on Cursor || Ready for Prod</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="https://public.codepenassets.com/css/reset-2.0.min.css">
+
+<style>
+  body {
+  background-color: #000;
+  width: 100dvw;
+  height: 200dvh;
+}
+
+#fluid {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100dvw;
+  height: 100dvh;
+}
+
+/* Control Panel Styles */
+#control-panel {
+  position: fixed;
+  top: 70px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 20px;
+  color: white;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  width: 300px;
+  max-height: 80vh;
+  overflow-y: auto;
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  transition: opacity 0.3s ease;
+}
+
+#control-panel.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#control-panel h2 {
+  margin: 0 0 15px 0;
+  font-size: 18px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 10px;
+}
+
+.control-group {
+  margin-bottom: 15px;
+}
+
+.control-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.control-group input[type="range"] {
+  width: 100%;
+  margin-bottom: 5px;
+}
+
+.value-display {
+  font-size: 12px;
+  color: #aaa;
+  text-align: center;
+}
+
+#toggle-button {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 5px;
+  color: white;
+  padding: 10px 15px;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  backdrop-filter: blur(10px);
+  z-index: 1001;
+  transition: background 0.3s ease;
+}
+
+#toggle-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+input[type="range"] {
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-track {
+  background: rgba(255, 255, 255, 0.2);
+  height: 4px;
+  border-radius: 2px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  background: #fff;
+  height: 16px;
+  width: 16px;
+  border-radius: 8px;
+  margin-top: -6px;
+}
+
+input[type="range"]::-moz-range-track {
+  background: rgba(255, 255, 255, 0.2);
+  height: 4px;
+  border-radius: 2px;
+  border: none;
+}
+
+input[type="range"]::-moz-range-thumb {
+  background: #fff;
+  height: 16px;
+  width: 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<canvas id="fluid"></canvas>
+
+<!-- Control Panel Toggle Button -->
+<button id="toggle-button" onclick="toggleControlPanel()">⚙️ Controls</button>
+
+<!-- Control Panel -->
+<div id="control-panel">
+  <h2>Fluid Animation Controls</h2>
+  
+  <div class="control-group">
+    <label for="DENSITY_DISSIPATION_slider">Density Dissipation</label>
+    <input type="range" id="DENSITY_DISSIPATION_slider" min="0" max="1" step="0.01" 
+           oninput="updateSliderValue('DENSITY_DISSIPATION', this.value)">
+    <div class="value-display" id="DENSITY_DISSIPATION_value">0.35</div>
+  </div>
+  
+  <div class="control-group">
+    <label for="VELOCITY_DISSIPATION_slider">Velocity Dissipation</label>
+    <input type="range" id="VELOCITY_DISSIPATION_slider" min="0" max="1" step="0.01" 
+           oninput="updateSliderValue('VELOCITY_DISSIPATION', this.value)">
+    <div class="value-display" id="VELOCITY_DISSIPATION_value">0.5</div>
+  </div>
+  
+  <div class="control-group">
+    <label for="PRESSURE_slider">Pressure</label>
+    <input type="range" id="PRESSURE_slider" min="0" max="1" step="0.01" 
+           oninput="updateSliderValue('PRESSURE', this.value)">
+    <div class="value-display" id="PRESSURE_value">0.1</div>
+  </div>
+  
+  <div class="control-group">
+    <label for="PRESSURE_ITERATIONS_slider">Pressure Iterations</label>
+    <input type="range" id="PRESSURE_ITERATIONS_slider" min="1" max="50" step="1" 
+           oninput="updateSliderValue('PRESSURE_ITERATIONS', this.value)">
+    <div class="value-display" id="PRESSURE_ITERATIONS_value">20</div>
+  </div>
+  
+  <div class="control-group">
+    <label for="CURL_slider">Curl</label>
+    <input type="range" id="CURL_slider" min="0" max="10" step="0.1" 
+           oninput="updateSliderValue('CURL', this.value)">
+    <div class="value-display" id="CURL_value">2</div>
+  </div>
+  
+  <div class="control-group">
+    <label for="SPLAT_RADIUS_slider">Splat Radius</label>
+    <input type="range" id="SPLAT_RADIUS_slider" min="0.001" max="0.1" step="0.001" 
+           oninput="updateSliderValue('SPLAT_RADIUS', this.value)">
+    <div class="value-display" id="SPLAT_RADIUS_value">0.01</div>
+  </div>
+  
+  <div class="control-group">
+    <label for="SPLAT_FORCE_slider">Splat Force</label>
+    <input type="range" id="SPLAT_FORCE_slider" min="100" max="5000" step="100" 
+           oninput="updateSliderValue('SPLAT_FORCE', this.value)">
+    <div class="value-display" id="SPLAT_FORCE_value">1000</div>
+  </div>
+  
+  <div class="control-group" style="margin-top: 20px; text-align: center;">
+    <button onclick="resetToDefaults()" style="
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 5px;
+      color: white;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+    ">Reset to Defaults</button>
+  </div>
+</div>
+
+<!-- partial -->
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.1/jquery.min.js'></script><script  src="script.js"></script>
+
+</body>
+</html>
